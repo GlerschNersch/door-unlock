@@ -1,0 +1,122 @@
+blueprint:
+  name: Arrive Home Unlock Door
+  description: Unlock the door when you arrive home
+
+    Version 1.0
+
+    **For more home automation tutorials, click here (https://www.michaelsleen.com/)**
+
+  domain: automation
+  author: Michael Leen
+
+  input:
+    tracker_entity:
+      name: Device Tracker
+      description: Device that tracks when you enter your home zone
+      selector:
+        entity:
+          domain:
+            - device_tracker
+    home_zone:
+      name: Home Zone
+      description: Name of your home zone
+      selector:
+        entity:
+          domain:
+            - zone
+    lock_entity:
+      name: Lock Entity
+      description: The lock that you want to unlock when you arrive home
+      selector:
+        entity:
+          multiple: true
+          domain:
+            - lock
+    ssid_sensor:
+      name: WiFi SSID Sensor
+      description: The sensor that gives the state of your device WiFi SSID
+      selector:
+        entity:
+          domain:
+            - sensor
+    ssid_name:
+      name: WiFi SSID Name
+      description: The automation will only run when your device is connected to this WiFi SSID
+      default: "Name of your WiFi SSID"
+    wait_time:
+      name: Wait Time
+      description: Time to wait for the device tracker to connect to your WiFi SSID
+      selector:
+        number:
+          mode: slider
+          min: 0
+          max: 3600
+          unit_of_measurement: seconds
+      default: 300
+    notify_device:
+      name: Device to Notify
+      description: Device to notify when the door is unlocked
+      default: []
+      selector:
+        device:
+          filter:
+            - integration: mobile_app
+          multiple: true
+    notify_message:
+      name: Notify Message
+      description: Message to send when the door is unlocked
+      default: The door was unlocked
+    notify_title:
+      name: Notify Title
+      description: Title of the message that sends when the door is unlocked
+      default: Welcome Home
+
+mode: single
+
+variables:
+  tracker_entity: !input tracker_entity
+  home_zone: !input home_zone
+  lock_entity: !input lock_entity
+  ssid_sensor: !input ssid_sensor
+  ssid_name: !input ssid_name
+  wait_time: !input wait_time
+  notify_device: !input notify_device
+  notify_message: !input notify_message
+  notify_titel: !input notify_title
+
+trigger:
+  - platform: zone
+    entity_id: !input tracker_entity
+    zone: !input home_zone
+    event: enter
+
+condition:
+  - condition: state
+    entity_id: !input lock_entity
+    state: locked
+
+action:
+  - wait_for_trigger:
+      - platform: state
+        entity_id:
+          - !input ssid_sensor
+        to: !input ssid_name
+    continue_on_timeout: false
+    timeout:
+      hours: 0
+      minutes: 0
+      seconds: !input wait_time
+      milliseconds: 0
+  - service: lock.unlock
+    data: {}
+    target:
+      entity_id: !input lock_entity
+  - sequence:
+      - alias: Send a notification to each device
+        repeat:
+          for_each: !input notify_device
+          sequence:
+            - service: "notify.mobile_app_{{ device_attr(repeat.item, 'name') | slugify }}"
+              data:
+                title: !input notify_title
+                message: !input notify_message
