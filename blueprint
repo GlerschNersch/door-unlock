@@ -52,7 +52,7 @@ blueprint:
           min: 0
           max: 3600
           unit_of_measurement: seconds
-      default: 300
+      default: 20
     notify_device:
       name: Device to Notify
       description: Device to notify when the door is unlocked
